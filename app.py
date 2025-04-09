@@ -3,6 +3,7 @@ import fitz  # PyMuPDF
 import google.generativeai as genai
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware  # Import CORS middleware
 from pydantic import BaseModel
 from typing import Optional
 import uvicorn
@@ -27,6 +28,16 @@ class ContractTextRequest(BaseModel):
 # ========== FastAPI App ========== #
 app = FastAPI(title="Legal Contract API", 
               description="API for drafting, analyzing, and answering questions about legal contracts")
+
+# ========== Add CORS Middleware ========== #
+# Configure CORS settings
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # ========== Gemini API ========== #
 GEMINI_API_KEY = "AIzaSyBaYkOY_pT-mPTtsEy-MmdmqrkImtDKTds"
