@@ -33,6 +33,9 @@ class UnifiedContractResponse(BaseModel):
     modification_history: Optional[List[dict]] = None
     detected_intent: Optional[str] = None  # What the model understood user wants
     error: Optional[str] = None
+    # New fields for session management
+    is_new_session: Optional[bool] = None
+    contracts_in_session: Optional[List[dict]] = None
 
 # Add new prompt for intent detection
 # Add new prompt for intent detection
@@ -439,44 +442,41 @@ def parse_contract_analysis_response(response_text):
 @app.post("/api/contract", response_model=UnifiedContractResponse, tags=["Unified Contract API"])
 async def unified_contract_endpoint(request: UnifiedContractRequest):
     """
-    **🎯 INTELLIGENT CONTRACT API - NO ACTION REQUIRED**
+    **🎯 INTELLIGENT CONTRACT API WITH PERSISTENT SESSIONS**
     
-    Simply provide your query in natural language and the AI will understand what you want!
+    One session handles multiple contracts! Switch between different contract types without losing your session.
+    
+    **Session Behavior:**
+    - First query: Creates a new session ID (return this to frontend)
+    - All subsequent queries: Use the same session ID
+    - New contracts: Added to the same session, becomes the active contract
+    - Questions/Modifications: Applied to the currently active contract
+    - Session persists until user refreshes or starts a new session
     
     **Examples:**
     
-    **Draft Contracts:**
+    **First Query (creates session):**
     ```json
     {
-        "query": "Draft a lease agreement for a 2-bedroom apartment for $1500/month"
+        "query": "Draft a lease agreement for $1500/month"
     }
     ```
     
-    **Ask Questions (with session_id):**
+    **Switch to new contract (same session):**
     ```json
     {
-        "query": "What are the payment terms in this contract?",
+        "query": "Draft a bond agreement for construction project",
+        "session_id": "your-session-id-from-first-query"
+    }
+    ```
+    
+    **Ask about active contract:**
+    ```json
+    {
+        "query": "What are the payment terms?",
         "session_id": "your-session-id"
     }
     ```
-    
-    **Modify Contracts (with session_id):**
-    ```json
-    {
-        "query": "Add a pet deposit clause of $300",
-        "session_id": "your-session-id"
-    }
-    ```
-    
-    **Analyze Contracts (with session_id):**
-    ```json
-    {
-        "query": "Analyze this contract and show me the risks",
-        "session_id": "your-session-id"
-    }
-    ```
-    
-    The AI automatically detects your intent and responds accordingly!
     """
     try:
         if not request.query:
@@ -495,11 +495,15 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
                 error="I am a specialized contract drafting tool. I can only help with contract-related requests such as drafting contracts, analyzing agreements, or answering legal questions about contracts."
             )
         
+        # Create or get session
+        session_id = create_or_get_session(request.session_id)
+        is_new_session = request.session_id is None or request.session_id not in contract_sessions
+        
         # Detect user intent based on query
-        has_session = request.session_id and request.session_id in contract_sessions
+        has_active_contract = get_active_contract(session_id) is not None
         intent_prompt = QUERY_INTENT_DETECTION_PROMPT.format(
             query=request.query,
-            has_session=has_session
+            has_session=has_active_contract
         )
         intent_result = get_gemini_response(intent_prompt)
         
@@ -507,6 +511,7 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
             return UnifiedContractResponse(
                 success=False,
                 query=request.query,
+                session_id=session_id,
                 error="Error understanding your request. Please try again."
             )
         
@@ -517,11 +522,12 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
             return UnifiedContractResponse(
                 success=False,
                 query=request.query,
+                session_id=session_id,
                 detected_intent="INVALID",
                 error="I couldn't understand your request. Please ask me to draft a contract, ask questions about a contract, modify a contract, or analyze a contract."
             )
         
-        # Handle DRAFT intent
+        # Handle DRAFT intent - Always creates new contract in session
         if detected_intent == "DRAFT":
             # Additional check for drafting keywords
             drafting_keywords = ["draft", "create", "make", "write", "generate", "contract", "agreement"]
@@ -529,12 +535,10 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
                 return UnifiedContractResponse(
                     success=False,
                     query=request.query,
+                    session_id=session_id,
                     detected_intent="DRAFT",
                     error="Please ask me to draft or create a specific type of contract."
                 )
-            
-            # Generate session ID and draft contract
-            session_id = str(uuid.uuid4())
             
             # Detect contract type
             type_prompt = CONTRACT_TYPE_DETECTION_PROMPT.format(query=request.query)
@@ -546,15 +550,16 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
             result = get_gemini_response(prompt)
             
             if result["success"]:
-                # Store in session
-                contract_sessions[session_id] = {
-                    "contract_text": result["response"],
-                    "contract_type": contract_type,
-                    "original_query": request.query,
-                    "creation_time": str(uuid.uuid1().time),
-                    "status": "drafted",
-                    "modification_history": []
-                }
+                # Add contract to session
+                contract_id = add_contract_to_session(
+                    session_id, 
+                    result["response"], 
+                    contract_type, 
+                    request.query
+                )
+                
+                # Get contracts summary
+                contracts_summary = get_contracts_summary(session_id)
                 
                 return UnifiedContractResponse(
                     success=True,
@@ -562,40 +567,33 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
                     session_id=session_id,
                     contract_text=result["response"],
                     contract_type=contract_type,
-                    detected_intent="DRAFT"
+                    detected_intent="DRAFT",
+                    is_new_session=is_new_session,
+                    contracts_in_session=contracts_summary
                 )
             else:
                 return UnifiedContractResponse(
                     success=False,
                     query=request.query,
+                    session_id=session_id,
                     detected_intent="DRAFT",
                     error=f"Error generating contract: {result['error']}"
                 )
         
-        # For all other intents, session_id is required
-        if not request.session_id:
+        # For all other intents, active contract is required
+        active_contract = get_active_contract(session_id)
+        if not active_contract:
             return UnifiedContractResponse(
                 success=False,
                 query=request.query,
+                session_id=session_id,
                 detected_intent=detected_intent,
-                error="Session ID is required for this operation. Please draft a contract first to get a session ID."
-            )
-        
-        # Validate session
-        if request.session_id not in contract_sessions:
-            return UnifiedContractResponse(
-                success=False,
-                query=request.query,
-                session_id=request.session_id,
-                detected_intent=detected_intent,
-                error="Session not found. Please draft a contract first."
+                error="No active contract found in this session. Please draft a contract first."
             )
         
         # Handle QUESTION intent
         if detected_intent == "QUESTION":
-            # Get contract and answer question
-            contract_data = contract_sessions[request.session_id]
-            contract_text = contract_data["contract_text"]
+            contract_text = active_contract["contract_text"]
             trimmed_text = contract_text[:20000]
             
             prompt = CONTRACT_QA_PROMPT.format(
@@ -608,25 +606,24 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
                 return UnifiedContractResponse(
                     success=True,
                     query=request.query,
-                    session_id=request.session_id,
+                    session_id=session_id,
                     answer=result["response"],
                     is_relevant=True,
-                    detected_intent="QUESTION"
+                    detected_intent="QUESTION",
+                    contracts_in_session=get_contracts_summary(session_id)
                 )
             else:
                 return UnifiedContractResponse(
                     success=False,
                     query=request.query,
-                    session_id=request.session_id,
+                    session_id=session_id,
                     detected_intent="QUESTION",
                     error=f"Error processing question: {result['error']}"
                 )
         
         # Handle MODIFY intent
         elif detected_intent == "MODIFY":
-            # Get current contract and modify
-            session_data = contract_sessions[request.session_id]
-            current_contract = session_data["contract_text"]
+            current_contract = active_contract["contract_text"]
             
             prompt = CONTRACT_MODIFICATION_PROMPT.format(
                 current_contract=current_contract,
@@ -635,9 +632,10 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
             result = get_gemini_response(prompt)
             
             if result["success"]:
-                # Update session
-                contract_sessions[request.session_id]["contract_text"] = result["response"]
-                contract_sessions[request.session_id]["modification_history"].append({
+                # Update active contract in session
+                active_contract_id = contract_sessions[session_id]["active_contract_id"]
+                contract_sessions[session_id]["contracts"][active_contract_id]["contract_text"] = result["response"]
+                contract_sessions[session_id]["contracts"][active_contract_id]["modification_history"].append({
                     "request": request.query,
                     "timestamp": str(uuid.uuid1().time)
                 })
@@ -645,25 +643,24 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
                 return UnifiedContractResponse(
                     success=True,
                     query=request.query,
-                    session_id=request.session_id,
+                    session_id=session_id,
                     contract_text=result["response"],
-                    modification_history=contract_sessions[request.session_id]["modification_history"],
-                    detected_intent="MODIFY"
+                    modification_history=contract_sessions[session_id]["contracts"][active_contract_id]["modification_history"],
+                    detected_intent="MODIFY",
+                    contracts_in_session=get_contracts_summary(session_id)
                 )
             else:
                 return UnifiedContractResponse(
                     success=False,
                     query=request.query,
-                    session_id=request.session_id,
+                    session_id=session_id,
                     detected_intent="MODIFY",
                     error=f"Error modifying contract: {result['error']}"
                 )
         
         # Handle ANALYZE intent
         elif detected_intent == "ANALYZE":
-            # Get contract and analyze
-            contract_data = contract_sessions[request.session_id]  
-            contract_text = contract_data["contract_text"]
+            contract_text = active_contract["contract_text"]
             trimmed_text = contract_text[:20000]
             
             prompt = CONTRACT_ANALYSIS_PROMPT.format(contract_text=trimmed_text)
@@ -675,17 +672,18 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
                 return UnifiedContractResponse(
                     success=True,
                     query=request.query,
-                    session_id=request.session_id,
+                    session_id=session_id,
                     contract_analysis=parsed_data['analysis'],
                     key_clauses=parsed_data['key_clauses'],
                     contract_details=parsed_data['contract_details'],
-                    detected_intent="ANALYZE"
+                    detected_intent="ANALYZE",
+                    contracts_in_session=get_contracts_summary(session_id)
                 )
             else:
                 return UnifiedContractResponse(
                     success=False,
                     query=request.query,
-                    session_id=request.session_id,
+                    session_id=session_id,
                     detected_intent="ANALYZE",
                     error=f"Error analyzing contract: {result['error']}"
                 )
@@ -695,14 +693,17 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
             return UnifiedContractResponse(
                 success=False,
                 query=request.query,
+                session_id=session_id,
                 detected_intent=detected_intent,
                 error="I couldn't understand what you want to do. Please ask me to draft, modify, analyze, or ask questions about contracts."
             )
     
     except Exception as e:
+        session_id = create_or_get_session(request.session_id) if request else None
         return UnifiedContractResponse(
             success=False,
-            query=request.query,
+            query=request.query if request else "",
+            session_id=session_id,
             error=f"Unexpected error: {str(e)}"
         )
 
