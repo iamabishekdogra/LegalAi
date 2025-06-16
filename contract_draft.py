@@ -845,8 +845,77 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
         )
 
 
+# ========== Session Management Helper Functions ========== #
+def create_or_get_session(session_id: Optional[str] = None) -> str:
+    """Create a new session or return existing session ID"""
+    if session_id and session_id in contract_sessions:
+        return session_id
+    
+    # Create new session
+    new_session_id = str(uuid.uuid4())
+    contract_sessions[new_session_id] = {
+        "contracts": {},  # Store multiple contracts by contract_id
+        "active_contract_id": None,  # Currently active contract
+        "creation_time": str(uuid.uuid1().time),
+        "total_contracts": 0
+    }
+    return new_session_id
 
+def add_contract_to_session(session_id: str, contract_text: str, contract_type: str, original_query: str) -> str:
+    """Add a new contract to existing session"""
+    contract_id = str(uuid.uuid4())
+    
+    if session_id not in contract_sessions:
+        session_id = create_or_get_session()
+    
+    session_data = contract_sessions[session_id]
+    session_data["contracts"][contract_id] = {
+        "contract_text": contract_text,
+        "contract_type": contract_type,
+        "original_query": original_query,
+        "creation_time": str(uuid.uuid1().time),
+        "status": "drafted",
+        "modification_history": []
+    }
+    
+    # Set as active contract
+    session_data["active_contract_id"] = contract_id
+    session_data["total_contracts"] += 1
+    
+    return contract_id
 
-# ========== Main Entry Point ========== #
+def get_active_contract(session_id: str) -> Optional[dict]:
+    """Get the currently active contract from session"""
+    if session_id not in contract_sessions:
+        return None
+    
+    session_data = contract_sessions[session_id]
+    active_contract_id = session_data.get("active_contract_id")
+    
+    if not active_contract_id or active_contract_id not in session_data["contracts"]:
+        return None
+    
+    return session_data["contracts"][active_contract_id]
+
+def get_contracts_summary(session_id: str) -> List[dict]:
+    """Get summary of all contracts in session"""
+    if session_id not in contract_sessions:
+        return []
+    
+    session_data = contract_sessions[session_id]
+    contracts_summary = []
+    
+    for contract_id, contract_data in session_data["contracts"].items():
+        is_active = contract_id == session_data["active_contract_id"]
+        contracts_summary.append({
+            "contract_id": contract_id,
+            "contract_type": contract_data["contract_type"],
+            "original_query": contract_data["original_query"],
+            "is_active": is_active,
+            "creation_time": contract_data["creation_time"]
+        })
+    
+    return contracts_summary
+
 if __name__ == "__main__":
-    uvicorn.run("contract_draft:app", host="0.0.0.0", port=9000, reload=True)
+    uvicorn.run("contract_draft:app", host="0.0.0.0", port=9000, reload=True)  # Changed from "contract:app" to "main:app"
