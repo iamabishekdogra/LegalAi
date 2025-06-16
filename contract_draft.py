@@ -438,6 +438,143 @@ def parse_contract_analysis_response(response_text):
             'contract_details': {}
         }
 
+
+# ========== Basic Endpoints ========== #
+@app.get("/", tags=["Info"])
+async def root():
+    """API Information and Usage Guide"""
+    return {
+        "message": "🎯 Intelligent Contract API with Persistent Sessions",
+        "description": "One session handles multiple contracts! Switch between different contract types without losing your session.",
+        "version": "2.0.0",
+        "main_endpoint": "/api/contract",
+        "session_behavior": {
+            "persistent_sessions": "One session ID works for multiple contracts",
+            "contract_switching": "Draft different contract types in same session",
+            "active_contract": "Questions/modifications apply to currently active contract",
+            "session_reset": "Only resets when user refreshes or creates new session"
+        },
+        "how_it_works": [
+            "1. Send your first contract query (creates session)",
+            "2. Receive session_id in response - save this!",
+            "3. Use same session_id for all subsequent queries",
+            "4. Draft new contracts = adds to session, becomes active",
+            "5. Questions/modifications = applies to active contract"
+        ],
+        "examples": {
+            "first_query": {
+                "description": "Creates new session",
+                "request": {
+                    "query": "Draft a lease agreement for $1500/month"
+                },
+                "response_includes": ["session_id", "contract_text", "is_new_session"]
+            },
+            "switch_contract": {
+                "description": "Add new contract to same session",
+                "request": {
+                    "query": "Draft an employment contract for developer",
+                    "session_id": "your-session-id"
+                },
+                "response_includes": ["same session_id", "new contract_text", "contracts_in_session"]
+            },
+            "ask_question": {
+                "description": "Question about active contract",
+                "request": {
+                    "query": "What are the payment terms?",
+                    "session_id": "your-session-id"
+                },
+                "response_includes": ["answer", "detected_intent: QUESTION"]
+            },
+            "modify_contract": {
+                "description": "Modify active contract",
+                "request": {
+                    "query": "Add a remote work clause",
+                    "session_id": "your-session-id"
+                },
+                "response_includes": ["updated contract_text", "modification_history"]
+            },
+            "analyze_contract": {
+                "description": "Analyze active contract",
+                "request": {
+                    "query": "Analyze this contract for risks",
+                    "session_id": "your-session-id"
+                },
+                "response_includes": ["contract_analysis", "key_clauses", "contract_details"]
+            }
+        },
+        "supported_intents": {
+            "DRAFT": "Create new contracts (lease, employment, service, etc.)",
+            "QUESTION": "Ask about contract content and terms",
+            "MODIFY": "Update or change existing contracts",
+            "ANALYZE": "Get comprehensive contract analysis and risk assessment"
+        },
+        "supported_contracts": [
+            "Lease Agreements",
+            "Employment Contracts", 
+            "Service Agreements",
+            "Purchase Agreements",
+            "Non-Disclosure Agreements (NDAs)",
+            "Partnership Agreements",
+            "Licensing Agreements",
+            "Consulting Agreements",
+            "And many more..."
+        ],
+        "api_features": {
+            "ai_powered": "Uses Google Gemini 1.5 Pro for intelligent responses",
+            "intent_detection": "Automatically understands what you want to do",
+            "session_management": "Persistent sessions across multiple contracts",
+            "contract_history": "Tracks all contracts and modifications in session",
+            "relevance_filtering": "Only processes contract-related queries",
+            "comprehensive_analysis": "Detailed contract analysis with risk assessment"
+        },
+        "testing_endpoints": {
+            "main_api": "POST /api/contract",
+            "health_check": "GET /health",
+            "documentation": "GET /docs",
+            "interactive_docs": "GET /redoc"
+        },
+        "quickstart": {
+            "step_1": "Send: {'query': 'Draft a lease agreement'}",
+            "step_2": "Save the session_id from response",
+            "step_3": "Use session_id for all future queries",
+            "step_4": "Switch between contracts using same session_id"
+        },
+        "postman_testing": {
+            "base_url": "http://localhost:8000",
+            "content_type": "application/json",
+            "save_session_id": "Extract session_id from first response",
+            "reuse_session": "Use same session_id for all subsequent requests"
+        }
+    }
+
+@app.get("/health", tags=["Health"])
+async def health_check():
+    """Health check endpoint with session statistics"""
+    total_sessions = len(contract_sessions)
+    total_contracts = sum(len(session["contracts"]) for session in contract_sessions.values())
+    
+    return {
+        "status": "healthy", 
+        "service": "Unified Contract Drafting API",
+        "version": "2.0.0",
+        "active_sessions": total_sessions,
+        "total_contracts": total_contracts,
+        "session_info": {
+            "persistent_sessions": "✅ Enabled",
+            "multi_contract_support": "✅ Enabled", 
+            "ai_model": "Google Gemini 1.5 Pro",
+            "storage": "In-Memory"
+        },
+        "uptime": "Server is running",
+        "endpoints": {
+            "main": "/api/contract",
+            "docs": "/docs", 
+            "health": "/health",
+            "info": "/"
+        }
+    }
+
+
 # ========== SINGLE UNIFIED CONTRACT ENDPOINT ========== #
 @app.post("/api/contract", response_model=UnifiedContractResponse, tags=["Unified Contract API"])
 async def unified_contract_endpoint(request: UnifiedContractRequest):
