@@ -849,4 +849,4 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
 
 # ========== Main Entry Point ========== #
 if __name__ == "__main__":
-    uvicorn.run("contract_draft:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("contract_draft:app", host="0.0.0.0", port=9000, reload=True)
