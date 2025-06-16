@@ -888,6 +888,14 @@ async def health_check():
         "active_sessions": len(contract_sessions)
     }
 
+# # ========== Main Entry Point ========== #
+# if __name__ == "__main__":
+#     uvicorn.run("contract:app", host="0.0.0.0", port=8000, reload=True)
+
+
+
+// ...existing code...
+
 # ========== Main Entry Point ========== #
 if __name__ == "__main__":
-    uvicorn.run("contract:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=9000, reload=True)
