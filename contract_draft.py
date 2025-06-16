@@ -844,58 +844,9 @@ async def unified_contract_endpoint(request: UnifiedContractRequest):
             error=f"Unexpected error: {str(e)}"
         )
 
-# ========== Basic Endpoints ========== #
-@app.get("/", tags=["Info"])
-async def root():
-    """API Information and Usage Guide"""
-    return {
-        "message": "🎯 Intelligent Contract API",
-        "description": "Just provide your query - AI understands what you want!",
-        "main_endpoint": "/api/contract",
-        "how_it_works": "Send natural language queries and the AI will automatically detect if you want to draft, modify, analyze, or ask questions about contracts",
-        "examples": {
-            "draft": {
-                "query": "Draft a lease agreement for a 2-bedroom apartment"
-            },
-            "modify": {
-                "query": "Add a pet deposit clause",
-                "session_id": "your-session-id"
-            },
-            "question": {
-                "query": "What are the payment terms?",
-                "session_id": "your-session-id"
-            },
-            "analyze": {
-                "query": "Analyze this contract and show risks",
-                "session_id": "your-session-id"
-            }
-        },
-        "workflow": [
-            "1. Send any contract-related query",
-            "2. AI detects your intent automatically",
-            "3. Get appropriate response based on what you asked",
-            "4. Use session_id for follow-up operations"
-        ],
-        "documentation": "/docs"
-    }
-
-@app.get("/health", tags=["Health"])
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy", 
-        "service": "Unified Contract Drafting API",
-        "active_sessions": len(contract_sessions)
-    }
-
-# # ========== Main Entry Point ========== #
-# if __name__ == "__main__":
-#     uvicorn.run("contract:app", host="0.0.0.0", port=8000, reload=True)
 
 
-
-# // ...existing code...
 
 # ========== Main Entry Point ========== #
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=9000, reload=True)
+    uvicorn.run("contract_draft:app", host="0.0.0.0", port=8000, reload=True)
