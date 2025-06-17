@@ -39,149 +39,149 @@ class ContractResponse(BaseModel):
     session_id: str
     total_queries: int
 
-# AGGRESSIVE formatting function to remove ALL markdown
-def clean_and_format_text(text: str, max_line_length: int = 70) -> str:
-    """
-    Aggressively clean and format text for frontend display
-    """
-    if not text:
-        return text
+# # AGGRESSIVE formatting function to remove ALL markdown
+# def clean_and_format_text(text: str, max_line_length: int = 70) -> str:
+#     """
+#     Aggressively clean and format text for frontend display
+#     """
+#     if not text:
+#         return text
     
-    # STEP 1: AGGRESSIVELY REMOVE ALL MARKDOWN
-    # Remove code blocks - multiple patterns
-    text = re.sub(r'```[\w\s]*\n', '', text)  # Opening code blocks
-    text = re.sub(r'```[\w\s]*', '', text)    # Code blocks without newline
-    text = re.sub(r'\n```\n', '\n', text)     # Closing code blocks with newlines
-    text = re.sub(r'\n```', '', text)         # Closing code blocks
-    text = re.sub(r'```', '', text)           # Any remaining backticks
+#     # STEP 1: AGGRESSIVELY REMOVE ALL MARKDOWN
+#     # Remove code blocks - multiple patterns
+#     text = re.sub(r'```[\w\s]*\n', '', text)  # Opening code blocks
+#     text = re.sub(r'```[\w\s]*', '', text)    # Code blocks without newline
+#     text = re.sub(r'\n```\n', '\n', text)     # Closing code blocks with newlines
+#     text = re.sub(r'\n```', '', text)         # Closing code blocks
+#     text = re.sub(r'```', '', text)           # Any remaining backticks
     
-    # Remove all backticks
-    text = text.replace('`', '')
+#     # Remove all backticks
+#     text = text.replace('`', '')
     
-    # Remove markdown bold/italic
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-    text = re.sub(r'\*(.*?)\*', r'\1', text)
-    text = re.sub(r'__(.*?)__', r'\1', text)
-    text = re.sub(r'_(.*?)_', r'\1', text)
+#     # Remove markdown bold/italic
+#     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+#     text = re.sub(r'\*(.*?)\*', r'\1', text)
+#     text = re.sub(r'__(.*?)__', r'\1', text)
+#     text = re.sub(r'_(.*?)_', r'\1', text)
     
-    # Remove markdown headers
-    text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
+#     # Remove markdown headers
+#     text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
     
-    # Clean up quotes that got escaped
-    text = text.replace('\\"', '"')
-    text = text.replace("\\'", "'")
+#     # Clean up quotes that got escaped
+#     text = text.replace('\\"', '"')
+#     text = text.replace("\\'", "'")
     
-    # STEP 2: NORMALIZE WHITESPACE
-    # Replace multiple spaces with single space (except at line start)
-    text = re.sub(r'(?<!^) {2,}', ' ', text, flags=re.MULTILINE)
+#     # STEP 2: NORMALIZE WHITESPACE
+#     # Replace multiple spaces with single space (except at line start)
+#     text = re.sub(r'(?<!^) {2,}', ' ', text, flags=re.MULTILINE)
     
-    # Clean up excessive newlines but preserve document structure
-    text = re.sub(r'\n{4,}', '\n\n\n', text)  # Max 3 newlines
+#     # Clean up excessive newlines but preserve document structure
+#     text = re.sub(r'\n{4,}', '\n\n\n', text)  # Max 3 newlines
     
-    # STEP 3: PROCESS LINE BY LINE FOR WRAPPING
-    lines = text.split('\n')
-    formatted_lines = []
+#     # STEP 3: PROCESS LINE BY LINE FOR WRAPPING
+#     lines = text.split('\n')
+#     formatted_lines = []
     
-    for line in lines:
-        # Keep empty lines for document structure
-        if not line.strip():
-            formatted_lines.append('')
-            continue
+#     for line in lines:
+#         # Keep empty lines for document structure
+#         if not line.strip():
+#             formatted_lines.append('')
+#             continue
         
-        stripped_line = line.strip()
+#         stripped_line = line.strip()
         
-        # Don't wrap short lines
-        if len(stripped_line) <= max_line_length:
-            formatted_lines.append(stripped_line)
-            continue
+#         # Don't wrap short lines
+#         if len(stripped_line) <= max_line_length:
+#             formatted_lines.append(stripped_line)
+#             continue
         
-        # Handle different types of content
+#         # Handle different types of content
         
-        # Legal section headers (ALL CAPS, short)
-        if (stripped_line.isupper() and 
-            len(stripped_line.split()) <= 6 and 
-            not stripped_line.endswith(':')):
-            formatted_lines.append(stripped_line)
-            continue
+#         # Legal section headers (ALL CAPS, short)
+#         if (stripped_line.isupper() and 
+#             len(stripped_line.split()) <= 6 and 
+#             not stripped_line.endswith(':')):
+#             formatted_lines.append(stripped_line)
+#             continue
         
-        # Numbered clauses (1., 2., etc.)
-        if re.match(r'^\d+\.\s+[A-Z]', stripped_line):
-            # Split at first colon or after first sentence
-            if ':' in stripped_line:
-                parts = stripped_line.split(':', 1)
-                header = parts[0] + ':'
-                content = parts[1].strip()
+#         # Numbered clauses (1., 2., etc.)
+#         if re.match(r'^\d+\.\s+[A-Z]', stripped_line):
+#             # Split at first colon or after first sentence
+#             if ':' in stripped_line:
+#                 parts = stripped_line.split(':', 1)
+#                 header = parts[0] + ':'
+#                 content = parts[1].strip()
                 
-                formatted_lines.append(header)
-                if content:
-                    wrapped_content = textwrap.fill(
-                        content,
-                        width=max_line_length - 3,
-                        initial_indent='   ',
-                        subsequent_indent='   ',
-                        break_long_words=False
-                    )
-                    formatted_lines.append(wrapped_content)
-            else:
-                # No colon, wrap the whole thing
-                wrapped = textwrap.fill(
-                    stripped_line,
-                    width=max_line_length,
-                    subsequent_indent='   ',
-                    break_long_words=False
-                )
-                formatted_lines.append(wrapped)
-            continue
+#                 formatted_lines.append(header)
+#                 if content:
+#                     wrapped_content = textwrap.fill(
+#                         content,
+#                         width=max_line_length - 3,
+#                         initial_indent='   ',
+#                         subsequent_indent='   ',
+#                         break_long_words=False
+#                     )
+#                     formatted_lines.append(wrapped_content)
+#             else:
+#                 # No colon, wrap the whole thing
+#                 wrapped = textwrap.fill(
+#                     stripped_line,
+#                     width=max_line_length,
+#                     subsequent_indent='   ',
+#                     break_long_words=False
+#                 )
+#                 formatted_lines.append(wrapped)
+#             continue
         
-        # Lettered subsections (A., B., etc.)
-        if re.match(r'^[A-Z]\.\s+', stripped_line):
-            wrapped = textwrap.fill(
-                stripped_line,
-                width=max_line_length,
-                subsequent_indent='   ',
-                break_long_words=False,
-                break_on_hyphens=False
-            )
-            formatted_lines.append(wrapped)
-            continue
+#         # Lettered subsections (A., B., etc.)
+#         if re.match(r'^[A-Z]\.\s+', stripped_line):
+#             wrapped = textwrap.fill(
+#                 stripped_line,
+#                 width=max_line_length,
+#                 subsequent_indent='   ',
+#                 break_long_words=False,
+#                 break_on_hyphens=False
+#             )
+#             formatted_lines.append(wrapped)
+#             continue
         
-        # Legal party descriptions (long lines with legal language)
-        if ('hereinafter referred to as' in stripped_line or 
-            'which expression shall' in stripped_line or
-            'residing at' in stripped_line):
-            # These are legal boilerplate - wrap more carefully
-            wrapped = textwrap.fill(
-                stripped_line,
-                width=max_line_length,
-                break_long_words=False,
-                break_on_hyphens=False,
-                expand_tabs=False
-            )
-            formatted_lines.append(wrapped)
-            continue
+#         # Legal party descriptions (long lines with legal language)
+#         if ('hereinafter referred to as' in stripped_line or 
+#             'which expression shall' in stripped_line or
+#             'residing at' in stripped_line):
+#             # These are legal boilerplate - wrap more carefully
+#             wrapped = textwrap.fill(
+#                 stripped_line,
+#                 width=max_line_length,
+#                 break_long_words=False,
+#                 break_on_hyphens=False,
+#                 expand_tabs=False
+#             )
+#             formatted_lines.append(wrapped)
+#             continue
         
-        # Regular long lines
-        wrapped = textwrap.fill(
-            stripped_line,
-            width=max_line_length,
-            break_long_words=False,
-            break_on_hyphens=True
-        )
-        formatted_lines.append(wrapped)
+#         # Regular long lines
+#         wrapped = textwrap.fill(
+#             stripped_line,
+#             width=max_line_length,
+#             break_long_words=False,
+#             break_on_hyphens=True
+#         )
+#         formatted_lines.append(wrapped)
     
-    # STEP 4: FINAL CLEANUP
-    result = '\n'.join(formatted_lines)
+#     # STEP 4: FINAL CLEANUP
+#     result = '\n'.join(formatted_lines)
     
-    # Remove any remaining excessive whitespace
-    result = re.sub(r'\n{4,}', '\n\n\n', result)
+#     # Remove any remaining excessive whitespace
+#     result = re.sub(r'\n{4,}', '\n\n\n', result)
     
-    # Clean up trailing spaces on lines
-    result = '\n'.join(line.rstrip() for line in result.split('\n'))
+#     # Clean up trailing spaces on lines
+#     result = '\n'.join(line.rstrip() for line in result.split('\n'))
     
-    # Remove leading/trailing whitespace from entire text
-    result = result.strip()
+#     # Remove leading/trailing whitespace from entire text
+#     result = result.strip()
     
-    return result
+#     return result
 
 # Updated prompt with even stricter instructions
 def create_indian_legal_prompt_with_context(query: str, conversation_history: list) -> str:
@@ -207,7 +207,7 @@ ABSOLUTE FORMATTING REQUIREMENTS - NO EXCEPTIONS:
 8. Use simple spacing and line breaks only
 9. LAPTOP SCREEN OPTIMIZATION:
    - Keep lines between 80-90 characters maximum
-   - Break lines after 12-15 words for optimal readability
+   - Break lines after 20 words for optimal readability
    - Use natural sentence breaks, don't break mid-phrase
    - Ensure each line fits comfortably on laptop screens
 10. PROPER STRUCTURE WITHOUT FORMATTING SYMBOLS:
@@ -247,24 +247,7 @@ ABSOLUTE FORMATTING REQUIREMENTS - NO EXCEPTIONS:
     - Include all necessary clauses
     - Reference Indian jurisdiction
 
-    EXAMPLE OF CORRECT FORMAT (no code blocks):
-
-    LEASE AGREEMENT
-
-    THIS LEASE AGREEMENT is made and entered into at [City], India on this [Date].
-
-    BETWEEN
-
-    [Name of Lessor], residing at [Address], hereinafter referred to as the "Lessor" of the ONE PART;
-
-    AND
-
-    [Name of Lessee], residing at [Address], hereinafter referred to as the "Lessee" of the OTHER PART.
-
-    1. LEASE TERM: The Lessor hereby leases the property to the Lessee for a period of [Duration].
-
-    2. RENT: The monthly rent shall be Rs. [Amount] payable in advance.
-
+    
     {context}
 
     User Query: {query}
@@ -307,7 +290,7 @@ async def indian_legal_assistant(request: ContractRequest):
         
         if response and response.text:
             # AGGRESSIVELY clean the response
-            cleaned_response = clean_and_format_text(response.text, max_line_length=70)
+            # cleaned_response = clean_and_format_text(response.text, max_line_length=70)
             
             # Check for rejection
             rejection_message = "I am a contract maker specialized in Indian legal system. I don't have knowledge outside legal and contract matters."
