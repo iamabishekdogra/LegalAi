@@ -39,151 +39,140 @@ class ContractResponse(BaseModel):
     session_id: str
     total_queries: int
 
-# AGGRESSIVE formatting function to remove ALL markdown
-def clean_and_format_text(text: str, max_line_length: int = 70) -> str:
+# Improved formatting function - less spacing, better structure
+def smart_text_cleanup(text: str, max_line_length: int = 80) -> str:
     """
-    Aggressively clean and format text for frontend display
+    Smart text cleanup with proper spacing and complete content
     """
     if not text:
         return text
     
-    # STEP 1: AGGRESSIVELY REMOVE ALL MARKDOWN
-    # Remove code blocks - multiple patterns
-    text = re.sub(r'```[\w\s]*\n', '', text)  # Opening code blocks
-    text = re.sub(r'```[\w\s]*', '', text)    # Code blocks without newline
-    text = re.sub(r'\n```\n', '\n', text)     # Closing code blocks with newlines
-    text = re.sub(r'\n```', '', text)         # Closing code blocks
-    text = re.sub(r'```', '', text)           # Any remaining backticks
+    # STEP 1: Remove markdown formatting
+    patterns_to_remove = [
+        r'```[\w\s]*\n',
+        r'```[\w\s]*',
+        r'\n```\n',
+        r'\n```',
+        r'```\n',
+        r'```',
+        r'`{1,3}',
+    ]
     
-    # Remove all backticks
-    text = text.replace('`', '')
+    for pattern in patterns_to_remove:
+        text = re.sub(pattern, '', text, flags=re.MULTILINE)
     
-    # Remove markdown bold/italic
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-    text = re.sub(r'\*(.*?)\*', r'\1', text)
-    text = re.sub(r'__(.*?)__', r'\1', text)
-    text = re.sub(r'_(.*?)_', r'\1', text)
-    
-    # Remove markdown headers
+    # Remove markdown formatting
+    text = re.sub(r'\*\*\*(.+?)\*\*\*', r'\1', text)
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    text = re.sub(r'__(.+?)__', r'\1', text)
+    text = re.sub(r'_(.+?)_', r'\1', text)
     text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
     
-    # Clean up quotes that got escaped
+    # Fix escaped quotes
     text = text.replace('\\"', '"')
     text = text.replace("\\'", "'")
+    text = text.replace('\\n', '\n')
     
-    # STEP 2: NORMALIZE WHITESPACE
-    # Replace multiple spaces with single space (except at line start)
-    text = re.sub(r'(?<!^) {2,}', ' ', text, flags=re.MULTILINE)
+    # STEP 2: Smart spacing - reduce excessive newlines but preserve structure
+    # Replace 4+ newlines with 2 newlines (double spacing)
+    text = re.sub(r'\n{4,}', '\n\n', text)
+    # Replace 3 newlines with 2 newlines
+    text = re.sub(r'\n{3}', '\n\n', text)
     
-    # Clean up excessive newlines but preserve document structure
-    text = re.sub(r'\n{4,}', '\n\n\n', text)  # Max 3 newlines
-    
-    # STEP 3: PROCESS LINE BY LINE FOR WRAPPING
+    # STEP 3: Process lines for wrapping
     lines = text.split('\n')
-    formatted_lines = []
+    processed_lines = []
     
     for line in lines:
-        # Keep empty lines for document structure
+        # Keep empty lines but don't add extra ones
         if not line.strip():
-            formatted_lines.append('')
+            # Only add empty line if the last line wasn't empty
+            if processed_lines and processed_lines[-1] != '':
+                processed_lines.append('')
             continue
         
-        stripped_line = line.strip()
+        cleaned_line = line.strip()
         
-        # Don't wrap short lines
-        if len(stripped_line) <= max_line_length:
-            formatted_lines.append(stripped_line)
+        # Don't wrap if line is reasonable length
+        if len(cleaned_line) <= max_line_length:
+            processed_lines.append(cleaned_line)
             continue
         
-        # Handle different types of content
+        # Handle different content types
         
-        # Legal section headers (ALL CAPS, short)
-        if (stripped_line.isupper() and 
-            len(stripped_line.split()) <= 6 and 
-            not stripped_line.endswith(':')):
-            formatted_lines.append(stripped_line)
+        # Section headers (ALL CAPS, reasonably short)
+        if (cleaned_line.isupper() and 
+            len(cleaned_line.split()) <= 8):
+            processed_lines.append(cleaned_line)
             continue
         
-        # Numbered clauses (1., 2., etc.)
-        if re.match(r'^\d+\.\s+[A-Z]', stripped_line):
-            # Split at first colon or after first sentence
-            if ':' in stripped_line:
-                parts = stripped_line.split(':', 1)
-                header = parts[0] + ':'
-                content = parts[1].strip()
+        # Numbered clauses with better formatting
+        numbered_match = re.match(r'^(\d+\.)\s*([A-Z][^:]*):?\s*(.*)', cleaned_line)
+        if numbered_match:
+            number = numbered_match.group(1)
+            title = numbered_match.group(2)
+            content = numbered_match.group(3)
+            
+            # Create header
+            if content:
+                header = f"{number} {title.upper()}:"
+                processed_lines.append(header)
                 
-                formatted_lines.append(header)
-                if content:
+                # Wrap content with minimal indent
+                if len(content) <= max_line_length - 3:
+                    processed_lines.append(f"   {content}")
+                else:
                     wrapped_content = textwrap.fill(
                         content,
                         width=max_line_length - 3,
                         initial_indent='   ',
                         subsequent_indent='   ',
-                        break_long_words=False
+                        break_long_words=False,
+                        break_on_hyphens=True
                     )
-                    formatted_lines.append(wrapped_content)
+                    processed_lines.append(wrapped_content)
             else:
-                # No colon, wrap the whole thing
+                processed_lines.append(f"{number} {title.upper()}")
+            continue
+        
+        # Lettered subsections
+        letter_match = re.match(r'^([A-Z]\.)\s*(.*)', cleaned_line)
+        if letter_match:
+            letter = letter_match.group(1)
+            content = letter_match.group(2)
+            
+            if len(f"{letter} {content}") <= max_line_length:
+                processed_lines.append(f"{letter} {content}")
+            else:
                 wrapped = textwrap.fill(
-                    stripped_line,
+                    f"{letter} {content}",
                     width=max_line_length,
                     subsequent_indent='   ',
-                    break_long_words=False
+                    break_long_words=False,
+                    break_on_hyphens=True
                 )
-                formatted_lines.append(wrapped)
+                processed_lines.append(wrapped)
             continue
         
-        # Lettered subsections (A., B., etc.)
-        if re.match(r'^[A-Z]\.\s+', stripped_line):
-            wrapped = textwrap.fill(
-                stripped_line,
-                width=max_line_length,
-                subsequent_indent='   ',
-                break_long_words=False,
-                break_on_hyphens=False
-            )
-            formatted_lines.append(wrapped)
-            continue
-        
-        # Legal party descriptions (long lines with legal language)
-        if ('hereinafter referred to as' in stripped_line or 
-            'which expression shall' in stripped_line or
-            'residing at' in stripped_line):
-            # These are legal boilerplate - wrap more carefully
-            wrapped = textwrap.fill(
-                stripped_line,
-                width=max_line_length,
-                break_long_words=False,
-                break_on_hyphens=False,
-                expand_tabs=False
-            )
-            formatted_lines.append(wrapped)
-            continue
-        
-        # Regular long lines
+        # Regular long lines - wrap normally
         wrapped = textwrap.fill(
-            stripped_line,
+            cleaned_line,
             width=max_line_length,
             break_long_words=False,
             break_on_hyphens=True
         )
-        formatted_lines.append(wrapped)
+        processed_lines.append(wrapped)
     
-    # STEP 4: FINAL CLEANUP
-    result = '\n'.join(formatted_lines)
+    # STEP 4: Final assembly with controlled spacing
+    result = '\n'.join(processed_lines)
     
-    # Remove any remaining excessive whitespace
-    result = re.sub(r'\n{4,}', '\n\n\n', result)
+    # Final cleanup - max 2 consecutive newlines
+    result = re.sub(r'\n{3,}', '\n\n', result)
     
-    # Clean up trailing spaces on lines
-    result = '\n'.join(line.rstrip() for line in result.split('\n'))
-    
-    # Remove leading/trailing whitespace from entire text
-    result = result.strip()
-    
-    return result
+    return result.strip()
 
-# Updated prompt with even stricter instructions
+# Enhanced prompt for complete contracts
 def create_indian_legal_prompt_with_context(query: str, conversation_history: list) -> str:
     context = ""
     if conversation_history:
@@ -194,52 +183,46 @@ def create_indian_legal_prompt_with_context(query: str, conversation_history: li
         context += "\nUse this context to provide relevant and consistent responses.\n"
     
     return f"""
-    You are an expert Indian contract attorney specialized in Indian legal system.
+    You are an expert Indian contract attorney specialized in Indian legal system with deep knowledge of:
+    - Indian Contract Act 1872
+    - Indian legal framework and regulations
+    - Indian court procedures and jurisdiction
+    - Indian legal terminology and practices
 
-    ABSOLUTE FORMATTING REQUIREMENTS - NO EXCEPTIONS:
-    1. NEVER use markdown code blocks (``` or ```)
-    2. NEVER use backticks of any kind
-    3. NEVER use asterisks for bold (**)
-    4. NEVER use hash symbols for headers (#)
-    5. Write ONLY in plain text
-    6. Start your response directly with the contract title
-    7. Do not wrap your response in any formatting symbols
-    8. Use simple spacing and line breaks only
+    IMPORTANT INSTRUCTIONS:
+    1. If the user query is NOT related to Indian legal system, contracts, agreements, or legal matters, respond EXACTLY with:
+       "I am a contract maker specialized in Indian legal system. I don't have knowledge outside legal and contract matters. Please ask questions about contracts, agreements, or Indian legal framework."
 
-    CONTENT RULES:
-    If the query is NOT about Indian legal/contract matters, respond exactly:
-    "I am a contract maker specialized in Indian legal system. I don't have knowledge outside legal and contract matters. Please ask questions about contracts, agreements, or Indian legal framework."
+    2. If the user query IS related to Indian legal/contract matters, then:
+       - For CONTRACT DRAFTING requests: Draft COMPLETE, COMPREHENSIVE contracts with ALL necessary clauses
+       - Include ALL standard legal provisions (termination, governing law, disputes, etc.)
+       - Make contracts DETAILED and THOROUGH, not brief summaries
+       - Use proper legal language and Indian Contract Act 1872 provisions
+       - Include specific clauses for the contract type requested
+       - Add relevant schedules, witness sections, and signature blocks
+       - For LEGAL QUESTIONS: Provide detailed answers based on Indian legal framework
+       - For CONTRACT ANALYSIS: Provide comprehensive analysis
+       - For FOLLOW-UP QUESTIONS: Reference previous conversation context
 
-    If the query IS about contracts:
-    - Draft complete contracts following Indian Contract Act 1872
-    - Use proper legal terminology
-    - Include all necessary clauses
-    - Reference Indian jurisdiction
-
-    EXAMPLE OF CORRECT FORMAT (no code blocks):
-
-    LEASE AGREEMENT
-
-    THIS LEASE AGREEMENT is made and entered into at [City], India on this [Date].
-
-    BETWEEN
-
-    [Name of Lessor], residing at [Address], hereinafter referred to as the "Lessor" of the ONE PART;
-
-    AND
-
-    [Name of Lessee], residing at [Address], hereinafter referred to as the "Lessee" of the OTHER PART.
-
-    1. LEASE TERM: The Lessor hereby leases the property to the Lessee for a period of [Duration].
-
-    2. RENT: The monthly rent shall be Rs. [Amount] payable in advance.
+    CONTENT REQUIREMENTS FOR CONTRACTS:
+    - Include complete party details section
+    - Add comprehensive terms and conditions (minimum 10-15 clauses)
+    - Include payment terms, security deposits, penalties
+    - Add termination conditions, renewal clauses
+    - Include dispute resolution mechanisms
+    - Add governing law and jurisdiction clauses
+    - Include force majeure, indemnity, and liability clauses
+    - Add proper witness and signature sections
+    - Include relevant schedules for property description, etc.
+    - Make it a FULL, LEGALLY COMPLETE document
 
     {context}
 
-    User Query: {query}
+    Current User Query: {query}
 
-    CRITICAL: Start your response immediately with the document title. Do not use any formatting symbols or code blocks.
+    IMPORTANT: Generate a COMPLETE, COMPREHENSIVE contract with ALL necessary legal clauses and provisions. Do not provide abbreviated or summary versions.
 
+    Response:
     """
 
 # Function to get or create session
@@ -255,17 +238,17 @@ def get_or_create_session(session_id: Optional[str] = None) -> str:
     }
     return new_session_id
 
-# Main endpoint with enhanced formatting
+# Main endpoint with improved formatting
 @app.post("/legal", response_model=ContractResponse)
 async def indian_legal_assistant(request: ContractRequest):
     """
-    Enhanced endpoint with aggressive formatting cleanup
+    Endpoint with smart formatting - complete content, proper spacing
     """
     try:
         session_id = get_or_create_session(request.session_id)
         session_data = user_sessions[session_id]
         
-        # Create prompt
+        # Create prompt for comprehensive response
         prompt = create_indian_legal_prompt_with_context(
             request.query, 
             session_data["conversation_history"]
@@ -275,8 +258,8 @@ async def indian_legal_assistant(request: ContractRequest):
         response = model.generate_content(prompt)
         
         if response and response.text:
-            # AGGRESSIVELY clean the response
-            cleaned_response = clean_and_format_text(response.text, max_line_length=70)
+            # Smart cleanup with proper spacing
+            clean_response = smart_text_cleanup(response.text, max_line_length=80)
             
             # Check for rejection
             rejection_message = "I am a contract maker specialized in Indian legal system. I don't have knowledge outside legal and contract matters."
@@ -284,17 +267,17 @@ async def indian_legal_assistant(request: ContractRequest):
             # Store interaction
             interaction = {
                 "query": request.query,
-                "response": cleaned_response,
+                "response": clean_response,
                 "timestamp": str(uuid.uuid1().time)
             }
             session_data["conversation_history"].append(interaction)
             session_data["total_queries"] += 1
             
-            if rejection_message in cleaned_response:
+            if rejection_message in clean_response:
                 return ContractResponse(
                     success=False,
                     query=request.query,
-                    error=cleaned_response.strip(),
+                    error=clean_response.strip(),
                     session_id=session_id,
                     total_queries=session_data["total_queries"]
                 )
@@ -302,7 +285,7 @@ async def indian_legal_assistant(request: ContractRequest):
                 return ContractResponse(
                     success=True,
                     query=request.query,
-                    response=cleaned_response,
+                    response=clean_response,
                     session_id=session_id,
                     total_queries=session_data["total_queries"]
                 )
@@ -311,7 +294,7 @@ async def indian_legal_assistant(request: ContractRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# Other endpoints remain the same
+# Other endpoints
 @app.get("/session/{session_id}")
 async def get_session_history(session_id: str):
     if session_id not in user_sessions:
@@ -343,18 +326,18 @@ async def refresh_session():
 @app.get("/")
 async def root():
     return {
-        "message": "Indian Contract Assistant - Zero Formatting",
-        "description": "Aggressively removes ALL markdown formatting",
+        "message": "Indian Contract Assistant - Complete & Well-Formatted",
+        "description": "Generates complete contracts with proper spacing",
         "features": {
-            "no_code_blocks": "Removes all ``` blocks",
-            "no_markdown": "Removes **, *, #, etc.",
-            "line_wrapping": "70 character limit",
-            "plain_text_only": "Pure text output"
+            "complete_contracts": "Full, comprehensive legal documents",
+            "smart_spacing": "Proper line spacing without excessive gaps",
+            "80_char_limit": "Optimal line length for readability",
+            "comprehensive_clauses": "All necessary legal provisions included"
         },
-        "endpoints": {
-            "main": "/legal (POST)",
-            "history": "/session/{session_id} (GET)",
-            "refresh": "/refresh (POST)"
+        "improvements": {
+            "content_length": "Full detailed contracts, not summaries",
+            "spacing_control": "Reduced excessive line breaks",
+            "better_structure": "Organized sections with proper headers"
         },
         "active_sessions": len(user_sessions)
     }
@@ -364,10 +347,11 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "Indian Contract Assistant",
-        "formatting": "zero-markdown",
+        "formatting": "complete-and-clean",
+        "content": "comprehensive",
         "active_sessions": len(user_sessions)
     }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("contract_draft:app", host="0.0.0.0", port=9000, reload=True)
+    uvicorn.run("contract:app", host="0.0.0.0", port=9000, reload=True)
