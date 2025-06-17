@@ -37,7 +37,7 @@ class ContractResponse(BaseModel):
     session_id: str
     total_queries: int
 
-# Enhanced prompt for proper laptop screen formatting
+# Enhanced prompt with your structured analysis format
 def create_indian_legal_prompt_with_context(query: str, conversation_history: list) -> str:
     context = ""
     if conversation_history:
@@ -47,89 +47,110 @@ def create_indian_legal_prompt_with_context(query: str, conversation_history: li
             context += f"   Previous Response: {item['response'][:200]}...\n"
         context += "\nUse this context to provide relevant and consistent responses.\n"
     
-    return f"""
-    You are an expert Indian contract attorney specialized in Indian legal system with deep knowledge of:
-    - Indian Contract Act 1872
-    - Indian legal framework and regulations
-    - Indian court procedures and jurisdiction
-    - Indian legal terminology and practices
+    # Check if it's a contract analysis request
+    analysis_keywords = ['analyze', 'analysis', 'review', 'examine', 'evaluate', 'assess', 'check']
+    is_analysis_request = any(keyword in query.lower() for keyword in analysis_keywords)
+    
+    if is_analysis_request:
+        # Use structured analysis prompt
+        return f"""
+        You are an expert Indian contract attorney specializing in contract analysis and drafting with deep knowledge of Indian Contract Act 1872 and Indian legal framework.
 
-    ABSOLUTE FORMATTING REQUIREMENTS - NO EXCEPTIONS:
-    1. NEVER use markdown code blocks (``` or ```)
-    2. NEVER use backticks of any kind
-    3. NEVER use asterisks for bold (**)
-    4. NEVER use hash symbols for headers (#)
-    5. Write ONLY in plain text
-    6. Start your response directly with the contract title
-    7. Do not wrap your response in any formatting symbols
-    8. Use simple spacing and line breaks only
-    9. LAPTOP SCREEN OPTIMIZATION:
-       - Keep lines between 80-90 characters maximum
-       - Break lines after 12-15 words for optimal readability
-       - Use natural sentence breaks, don't break mid-phrase
-       - Ensure each line fits comfortably on laptop screens
-    10. PROPER STRUCTURE WITHOUT FORMATTING SYMBOLS:
-        - Main headings: Use ALL CAPS for section titles
-        - Subheadings: Use Title Case With First Letters Capitalized
-        - Numbered clauses: Use format "1. CLAUSE TITLE:"
-        - Sub-clauses: Use format "   a) subcclause content"
-        - Lettered sections: Use format "A. Section content"
-    11. SPACING GUIDELINES:
-        - Single blank line between paragraphs
-        - Double blank line between major sections
-        - No more than 2 consecutive blank lines anywhere
-        - Indent sub-clauses with 3 spaces
-    12. CONTENT PRESENTATION:
-        - Start each major section on a new line
-        - Use consistent indentation for hierarchy
-        - Break long legal sentences at natural pause points
-        - Maintain legal document structure without formatting symbols
-    13. LINE BREAKING RULES:
-        - Break after commas in long sentences
-        - Break after "and", "or", "but" when lines get long
-        - Break after legal phrases like "hereinafter referred to as"
-        - Never break in the middle of legal terms or names
-    14. PROFESSIONAL APPEARANCE:
-        - Use proper capitalization for legal terms
-        - Maintain consistent spacing throughout
-        - Ensure clean, readable layout suitable for laptop viewing
-        - Present content in a visually organized manner without markdown
+        **ANALYSIS REQUIREMENTS:**
 
-    IMPORTANT INSTRUCTIONS:
-    1. If the user query is NOT related to Indian legal system, contracts, agreements, or legal matters, respond EXACTLY with:
-       "I am a contract maker specialized in Indian legal system. I don't have knowledge outside legal and contract matters. Please ask questions about contracts, agreements, or Indian legal framework."
+        ## 1. CONTRACT OVERVIEW
+        - **Contract Type:** [Employment/Service/Sale/Lease/NDA/Partnership/etc.]
+        - **Contract Title:** [Full contract name]
+        - **Date:** [Date of execution/effective date]
+        - **Duration:** [Contract term/validity period]
+        - **Governing Law:** [Applicable Indian jurisdiction]
 
-    2. If the user query IS related to Indian legal/contract matters, then:
-       - For CONTRACT DRAFTING requests: Draft COMPLETE, COMPREHENSIVE contracts with ALL necessary clauses
-       - Include ALL standard legal provisions (termination, governing law, disputes, etc.)
-       - Make contracts DETAILED and THOROUGH, not brief summaries
-       - Use proper legal language and Indian Contract Act 1872 provisions
-       - Include specific clauses for the contract type requested
-       - Add relevant schedules, witness sections, and signature blocks
-       - For LEGAL QUESTIONS: Provide detailed answers based on Indian legal framework
-       - For CONTRACT ANALYSIS: Provide comprehensive analysis
-       - For FOLLOW-UP QUESTIONS: Reference previous conversation context
+        ## 2. PARTIES INVOLVED
+        - **Party 1:** [Name, role, and legal status]
+        - **Party 2:** [Name, role, and legal status]
+        - **Other Parties:** [If any]
 
-    CONTENT REQUIREMENTS FOR CONTRACTS:
-    - Include complete party details section
-    - Add comprehensive terms and conditions (minimum 10-15 clauses)
-    - Include payment terms, security deposits, penalties
-    - Add termination conditions, renewal clauses
-    - Include dispute resolution mechanisms
-    - Add governing law and jurisdiction clauses
-    - Include force majeure, indemnity, and liability clauses
-    - Add proper witness and signature sections
-    - Include relevant schedules for property description, etc.
-    - Make it a FULL, LEGALLY COMPLETE document
+        ## 3. KEY TERMS & CONDITIONS
+        Identify and explain the main contractual terms:
+        - **Primary Obligations:** [What each party must do]
+        - **Consideration:** [Payment/exchange terms]
+        - **Performance Standards:** [Quality/delivery requirements]
+        - **Timelines:** [Important dates and deadlines]
 
-    {context}
+        ## 4. CRITICAL CLAUSES ANALYSIS
+        - **Termination Clause:** [Conditions for ending the contract]
+        - **Liability/Indemnity:** [Risk allocation and protection]
+        - **Confidentiality:** [Non-disclosure obligations]
+        - **Intellectual Property:** [IP ownership and usage rights]
+        - **Force Majeure:** [Unforeseeable circumstances protection]
+        - **Dispute Resolution:** [How conflicts will be resolved]
 
-    Current User Query: {query}
+        ## 5. PAYMENT & FINANCIAL TERMS
+        - **Payment Amount:** [Contract value/fees]
+        - **Payment Schedule:** [When payments are due]
+        - **Late Payment:** [Penalties for delayed payment]
+        - **Expenses:** [Who pays for what additional costs]
 
-    IMPORTANT: Generate a COMPLETE, COMPREHENSIVE contract with ALL necessary legal clauses and provisions. Follow the formatting requirements exactly for optimal laptop screen display.
+        ## 6. RISKS & RED FLAGS
+        Identify potential issues or concerning clauses that need attention under Indian law.
 
-    Response:
-    """
+        ## 7. COMPLIANCE & LEGAL REQUIREMENTS
+        - **Indian Legal Compliance:** [Indian Contract Act 1872 compliance]
+        - **Regulatory Compliance:** [Industry-specific Indian requirements]
+        - **Legal Formalities:** [Signature, witness, notarization needs per Indian law]
+
+        ## 8. RECOMMENDATIONS
+        Provide suggestions for improvements based on Indian legal framework.
+
+        ABSOLUTE FORMATTING REQUIREMENTS:
+        1. NEVER use markdown code blocks (``` or ```)
+        2. NEVER use backticks of any kind
+        3. NEVER use asterisks for bold (**)
+        4. Use ONLY plain text formatting
+        5. Use the exact structure above with clear headings
+        6. Keep lines between 80-90 characters maximum
+        7. Break lines after 12-15 words for optimal readability
+
+        {context}
+
+        User Query: {query}
+
+        Provide a comprehensive contract analysis following the exact structure above:
+        """
+    else:
+        # Use regular contract drafting/legal advice prompt
+        return f"""
+        You are an expert Indian contract attorney specialized in Indian legal system with deep knowledge of:
+        - Indian Contract Act 1872
+        - Indian legal framework and regulations
+        - Indian court procedures and jurisdiction
+        - Indian legal terminology and practices
+
+        IMPORTANT INSTRUCTIONS:
+        1. If the user query is NOT related to Indian legal system, contracts, agreements, or legal matters, respond EXACTLY with:
+           "I am a contract maker specialized in Indian legal system. I don't have knowledge outside legal and contract matters. Please ask questions about contracts, agreements, or Indian legal framework."
+
+        2. If the user query IS related to Indian legal/contract matters, then:
+           - For CONTRACT DRAFTING requests: Draft COMPLETE, COMPREHENSIVE contracts with ALL necessary clauses
+           - For LEGAL QUESTIONS: Provide detailed answers based on Indian legal framework
+           - For CONTRACT ANALYSIS: Use the structured analysis format above
+           - For FOLLOW-UP QUESTIONS: Reference previous conversation context
+
+        CONTENT REQUIREMENTS FOR CONTRACTS:
+        - Include complete party details section
+        - Add comprehensive terms and conditions (minimum 10-15 clauses)
+        - Include payment terms, security deposits, penalties
+        - Add termination conditions, renewal clauses
+        - Include dispute resolution mechanisms
+        - Add governing law and jurisdiction clauses
+        - Make it a FULL, LEGALLY COMPLETE document
+
+        {context}
+
+        Current User Query: {query}
+
+        Response:
+        """
 
 # Function to get or create session
 def get_or_create_session(session_id: Optional[str] = None) -> str:
@@ -144,17 +165,17 @@ def get_or_create_session(session_id: Optional[str] = None) -> str:
     }
     return new_session_id
 
-# Main endpoint without text formatting function
+# Main endpoint with structured analysis capability
 @app.post("/legal", response_model=ContractResponse)
 async def indian_legal_assistant(request: ContractRequest):
     """
-    Endpoint relying entirely on AI prompt formatting instructions
+    Endpoint with structured contract analysis and drafting capability
     """
     try:
         session_id = get_or_create_session(request.session_id)
         session_data = user_sessions[session_id]
         
-        # Create prompt with detailed formatting instructions
+        # Create prompt with structured analysis if needed
         prompt = create_indian_legal_prompt_with_context(
             request.query, 
             session_data["conversation_history"]
@@ -164,7 +185,7 @@ async def indian_legal_assistant(request: ContractRequest):
         response = model.generate_content(prompt)
         
         if response and response.text:
-            # Use AI response directly without any post-processing
+            # Use AI response directly
             ai_response = response.text.strip()
             
             # Check for rejection
@@ -200,7 +221,7 @@ async def indian_legal_assistant(request: ContractRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# Other endpoints
+# Other endpoints remain the same
 @app.get("/session/{session_id}")
 async def get_session_history(session_id: str):
     if session_id not in user_sessions:
@@ -232,15 +253,24 @@ async def refresh_session():
 @app.get("/")
 async def root():
     return {
-        "message": "Indian Contract Assistant - AI-Formatted Output",
-        "description": "Relies on AI prompt instructions for proper formatting",
+        "message": "Indian Contract Assistant - Structured Analysis & Drafting",
+        "description": "Provides structured contract analysis and comprehensive drafting",
         "features": {
-            "ai_formatting": "AI follows detailed formatting instructions",
-            "laptop_optimized": "80-90 character line limits",
-            "natural_breaks": "12-15 words per line",
-            "no_post_processing": "Direct AI output without modification"
+            "contract_analysis": "8-section structured analysis format",
+            "contract_drafting": "Complete legal document creation",
+            "indian_law_focus": "Indian Contract Act 1872 compliance",
+            "laptop_optimized": "80-90 character line formatting"
         },
-        "formatting_approach": "Pure AI instruction-based formatting",
+        "analysis_sections": [
+            "Contract Overview",
+            "Parties Involved", 
+            "Key Terms & Conditions",
+            "Critical Clauses Analysis",
+            "Payment & Financial Terms",
+            "Risks & Red Flags",
+            "Compliance & Legal Requirements",
+            "Recommendations"
+        ],
         "active_sessions": len(user_sessions)
     }
 
@@ -249,8 +279,8 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "Indian Contract Assistant",
-        "formatting": "ai-instructed",
-        "post_processing": "disabled",
+        "capabilities": ["analysis", "drafting", "legal_advice"],
+        "formatting": "structured-plain-text",
         "active_sessions": len(user_sessions)
     }
 
